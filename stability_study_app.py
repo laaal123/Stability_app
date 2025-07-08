@@ -269,59 +269,18 @@ if excel_btn:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-if pdf_btn:
-   pdf_output = io.BytesIO()
+# PDF export
+pdf_output = io.BytesIO()
 doc = SimpleDocTemplate(pdf_output, pagesize=A4)
-story = []
-styles = getSampleStyleSheet()
-
-story.append(Paragraph("Stability Study Report", styles['Title']))
-story.append(Spacer(1, 12))
-
-story.append(Paragraph(f"<b>Product Name:</b> {product_name}<br/>", styles['Normal']))
-story.append(Paragraph(f"<b>Batch Number:</b> {batch_number}<br/>", styles['Normal']))
-story.append(Paragraph(f"<b>Batch Size:</b> {batch_size}<br/>", styles['Normal']))
-story.append(Paragraph(f"<b>Packaging Mode:</b> {packaging_mode}<br/>", styles['Normal']))
-story.append(Spacer(1, 12))
-
-story.append(Paragraph("Test Parameters", styles['Heading2']))
-story.append(Spacer(1, 6))
-table_data = [["Parameter", "Specification"]] + edited_params.values.tolist()
-tbl = Table(table_data, hAlign='LEFT')
-tbl.setStyle(TableStyle([
-    ('BACKGROUND', (0,0), (-1,0), colors.grey),
-    ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),
-    ('ALIGN',(0,0),(-1,-1),'CENTER'),
-    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-    ('BOTTOMPADDING', (0,0), (-1,0), 12),
-    ('GRID', (0,0), (-1,-1), 0.5, colors.black),
-]))
-story.append(tbl)
-
-# Insert charts
-for pname, chart_path in chart_paths:
-    story.append(Spacer(1, 12))
-    story.append(Paragraph(f"Chart for {pname}", styles['Heading3']))
-    story.append(PDFImage(chart_path, width=6*inch, height=3*inch))
-
-if text_data:
-    story.append(Spacer(1, 24))
-    story.append(Paragraph("Extracted Text from File", styles['Heading2']))
-    story.append(Spacer(1, 6))
-    story.append(Paragraph(text_data.replace("\n", "<br/>"), styles['Normal']))
-
-story.append(Spacer(1, 12))
+...
 doc.build(story)
-
-if not isinstance(pdf_output, io.BytesIO):
-    st.error("pdf_output is not a BytesIO object!")
-
 st.download_button(
     label="📄 Download PDF Report",
     data=pdf_output.getvalue(),
     file_name="stability_study_report.pdf",
     mime="application/pdf"
 )
+
 
 st.markdown("---")
 st.markdown("Built for Stability Analysis | Pharma Quality Tools")
