@@ -10,7 +10,6 @@ Original file is located at
 
 # stability_study_app.py
 
-pip install reportlab
 import streamlit as st
 import pandas as pd
 import numpy as np
