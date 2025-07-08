@@ -40,6 +40,7 @@ uploaded_file = st.file_uploader("Choose an Excel (.xlsx), Word (.docx), or PDF 
 # --- Initialize ---
 preloaded_data = {}
 text_data = ""
+text_table_df = None
 
 # --- Parse uploaded file ---
 if uploaded_file is not None:
@@ -51,14 +52,17 @@ if uploaded_file is not None:
             st.success(f"Excel file loaded with sheets: {', '.join(preloaded_data.keys())}")
         elif file_ext == 'docx':
             doc = docx.Document(uploaded_file)
-            text_data = "\n".join([para.text for para in doc.paragraphs])
-            st.info("Word file parsed (text preview below):")
-            st.text_area("Extracted Text", text_data, height=150)
+            paragraphs = [para.text for para in doc.paragraphs if para.text.strip() != ""]
+            text_data = "\n".join(paragraphs)
+            text_table_df = pd.DataFrame([[p] for p in paragraphs], columns=["Extracted Text"])
+            st.success("Word file parsed and table created")
         elif file_ext == 'pdf':
             pdf = PdfReader(uploaded_file)
-            text_data = "\n".join([page.extract_text() or "" for page in pdf.pages])
-            st.info("PDF parsed (text preview below):")
-            st.text_area("Extracted Text", text_data, height=150)
+            pages = [page.extract_text() or "" for page in pdf.pages]
+            lines = [line.strip() for page in pages for line in page.split('\n') if line.strip() != ""]
+            text_data = "\n".join(lines)
+            text_table_df = pd.DataFrame([[line] for line in lines], columns=["Extracted Text"])
+            st.success("PDF file parsed and table created")
     except Exception as e:
         st.error(f"Failed to parse file: {e}")
 
@@ -68,6 +72,9 @@ if preloaded_data:
     for sheet, df in preloaded_data.items():
         st.markdown(f"**Sheet: {sheet}**")
         st.dataframe(df)
+elif text_table_df is not None:
+    st.markdown("**Extracted Table from Uploaded File:**")
+    st.dataframe(text_table_df)
 elif text_data:
     st.text_area("Parsed Text Preview", text_data, height=300)
 else:
