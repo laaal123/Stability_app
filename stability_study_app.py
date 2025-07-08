@@ -127,8 +127,11 @@ for condition in conditions:
             ax.set_title(f"{pname} - {condition}")
             ax.set_ylabel("Value")
             ax.set_xlabel("Time Point")
+            ax.set_xticks(range(len(selected_timepoints)))
+            ax.set_xticklabels(selected_timepoints, rotation=45, ha='right')
             ax.grid(True)
             ax.legend()
+            plt.tight_layout()
             st.pyplot(fig)
 
             chart_path = os.path.join(temp_dir, f"{condition}_{pname}.png")
