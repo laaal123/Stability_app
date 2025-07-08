@@ -4,6 +4,8 @@ numpy
 matplotlib
 scikit-learn
 openpyxl
-reportlab
-PyPDF2
 python-docx
+PyPDF2
+reportlab
+pdf2image
+pytesseract
