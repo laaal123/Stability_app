@@ -9,6 +9,23 @@ Original file is located at
 
 # stability_study_app.py
 
+# ✅ Automatically check for missing modules
+try:
+    import streamlit
+    import pandas
+    import numpy
+    import matplotlib
+    import sklearn
+    import openpyxl
+    import reportlab
+    import PyPDF2
+    import docx
+except ImportError as e:
+    missing_module = str(e).split("No module named")[-1].strip().strip("'")
+    import streamlit as st
+    st.error(f"❌ Required module {missing_module} is not installed. Please install all dependencies.")
+    st.stop()
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -96,5 +113,6 @@ st.download_button(
 
 # The rest of the code remains unchanged...
 # (All previous logic related to form inputs, plots, Excel and PDF generation)
+
 
 
