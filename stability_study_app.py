@@ -23,6 +23,11 @@ import tempfile
 import os
 import docx
 from PyPDF2 import PdfReader
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as PDFImage
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+from reportlab.lib import colors
 
 # --- Setup ---
 st.set_page_config(layout="wide")
