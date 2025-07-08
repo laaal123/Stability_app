@@ -274,8 +274,8 @@ if excel_btn:
                 ws.append([f"Chart for {pname}"])
                 chart_row_start = ws.max_row + 1
                 img = XLImage(img_path)
-                img.width = 600
-                img.height = 300
+                img.width = 400
+                img.height = 250
                 ws.add_image(img, f"B{chart_row_start}")
                 chart_row_start += 18
 
