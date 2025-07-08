@@ -9,23 +9,6 @@ Original file is located at
 
 # stability_study_app.py
 
-# ✅ Automatically check for missing modules
-try:
-    import streamlit
-    import pandas
-    import numpy
-    import matplotlib
-    import sklearn
-    import openpyxl
-    import reportlab
-    import PyPDF2
-    import docx
-except ImportError as e:
-    missing_module = str(e).split("No module named")[-1].strip().strip("'")
-    import streamlit as st
-    st.error(f"❌ Required module {missing_module} is not installed. Please install all dependencies.")
-    st.stop()
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -36,14 +19,14 @@ import os
 import io
 import re
 
-# PDF generation
+# PDF generation imports
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as PDFImage
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
-# Excel output
+# Excel output imports
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
@@ -53,6 +36,8 @@ from PyPDF2 import PdfReader
 import docx
 
 st.set_page_config(layout="wide")
+
+# Always visible file upload section
 st.markdown("## 📂 Upload File")
 uploaded_file = st.file_uploader("Upload Excel, Word or PDF", type=["xlsx", "docx", "pdf"])
 preloaded_data = {}
@@ -60,7 +45,7 @@ text_data = ""
 
 st.title("🧪 Stability Study Report Generator (Excel + PDF Support)")
 
-# Parse uploaded file
+# Parse uploaded file if provided
 if uploaded_file is not None:
     file_ext = uploaded_file.name.split('.')[-1].lower()
     try:
@@ -81,11 +66,7 @@ if uploaded_file is not None:
     except Exception as e:
         st.error(f"Failed to parse file: {e}")
 
-# Ensure download buttons always show
-st.markdown("### 📄 Export Options")
-st.info("Use the buttons below to export Excel or PDF. Fill data or upload a file above to activate content.")
-
-# Preview area
+# Preview uploaded data
 st.markdown("#### 👁️ Preview Report Content")
 if text_data:
     st.text_area("📄 Parsed Content Preview", text_data, height=300)
@@ -94,25 +75,202 @@ elif preloaded_data:
         st.markdown(f"**Sheet: {sheet}**")
         st.dataframe(df)
 else:
-    st.warning("No data to preview. Please upload a supported file.")
+    st.warning("No data to preview. Please upload a supported file or fill the form below.")
 
-st.download_button(
-    label="📄 Download PDF Report",
-    data=b"",
-    file_name="stability_report.pdf",
-    mime="application/pdf",
-    disabled=True
-)
-st.download_button(
-    label="📊 Download Excel Report",
-    data=b"",
-    file_name="stability_report.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    disabled=True
+# --- HEADER INPUTS ---
+product_name = st.text_input("Product Name")
+batch_number = st.text_input("Batch Number")
+packaging_mode = st.text_input("Packaging Mode")
+batch_size = st.text_input("Batch Size")
+
+st.markdown("### ➕ Add Stability Condition Data")
+
+conditions = st.multiselect(
+    "Select Stability Conditions:",
+    ["25C_60RH", "30C_65RH", "40C_75RH"],
+    default=["40C_75RH"]
 )
 
-# The rest of the code remains unchanged...
-# (All previous logic related to form inputs, plots, Excel and PDF generation)
+# --- Timepoints ---
+available_timepoints = ["Initial", "1M", "3M", "6M", "9M", "12M", "18M", "24M"]
+selected_timepoints = st.multiselect("Select Timepoints to Include:", available_timepoints, default=available_timepoints)
+
+# --- Manual Input Table for Each Condition ---
+all_data = {}
+chart_paths = []
+
+def get_numeric(value):
+    try:
+        return float(''.join([s for s in value if s.isdigit() or s == '.']))
+    except:
+        return None
+
+# Excel style elements
+red_fill = PatternFill(start_color="FF9999", end_color="FF9999", fill_type="solid")
+thin_border = Border(
+    left=Side(style='thin'),
+    right=Side(style='thin'),
+    top=Side(style='thin'),
+    bottom=Side(style='thin')
+)
+bold_font = Font(bold=True)
+
+# Temporary directory for chart images
+temp_dir = tempfile.mkdtemp()
+
+for condition in conditions:
+    st.markdown(f"### 📋 Data for {condition}")
+    default_params = ["Assay", "Dissolution", "Unknown Impurity", "Total Impurity"]
+    param_input = st.text_area(
+        f"Enter Parameters for {condition} (one per line)",
+        value='\n'.join(default_params),
+        key=f"param_input_{condition}"
+    )
+    param_names = [line.strip() for line in param_input.splitlines() if line.strip()]
+    n_params = len(param_names)
+
+    data = []
+    for i in range(n_params):
+        cols = st.columns(len(selected_timepoints) + 2)
+        pname = cols[0].text_input("Parameter", value=param_names[i], key=f"p_{condition}_{i}")
+        spec = cols[1].text_input("Specification", value="", key=f"s_{condition}_{i}")
+        row = [pname, spec]
+        for j, tp in enumerate(selected_timepoints):
+            val = cols[j+2].number_input(tp, value=np.nan, format="%.4f", key=f"val_{condition}_{i}_{tp}")
+            row.append(val)
+        data.append(row)
+
+    columns = ["Parameter", "Specification"] + selected_timepoints
+    df = pd.DataFrame(data, columns=columns)
+    all_data[condition] = df
+    st.dataframe(df)
+
+    # Plot data and save charts
+    for _, row in df.iterrows():
+        pname = row["Parameter"]
+        values = row[selected_timepoints].astype(float)
+        if values.count() >= 2:
+            times_numeric = np.array([i for i, val in enumerate(values) if not np.isnan(val)]).reshape(-1, 1)
+            values_clean = np.array([val for val in values if not np.isnan(val)])
+            model = LinearRegression().fit(times_numeric, values_clean)
+            pred = model.predict(times_numeric)
+
+            fig, ax = plt.subplots(figsize=(6, 3))
+            ax.plot(selected_timepoints, row[selected_timepoints], marker='o', label='Observed')
+            ax.plot(np.array(selected_timepoints)[~np.isnan(values)], pred, '--', label='Trendline', color='gray')
+
+            spec_text = str(row['Specification']).strip()
+            try:
+                if pname.lower() == 'assay' or 'assay' in pname.lower():
+                    limits = [float(s) for s in spec_text.replace('%','').split('-') if s.strip()]
+                    if len(limits) == 2:
+                        ax.axhline(limits[0], color='red', linestyle='--', label='Lower Spec')
+                        ax.axhline(limits[1], color='red', linestyle='--', label='Upper Spec')
+                elif pname.lower() == 'dissolution':
+                    limit = get_numeric(spec_text)
+                    if limit: ax.axhline(limit, color='orange', linestyle='--', label='NLT Spec')
+                elif 'impurity' in pname.lower():
+                    limit = get_numeric(spec_text)
+                    if limit: ax.axhline(limit, color='purple', linestyle='--', label='NMT Spec')
+                else:
+                    limit = get_numeric(spec_text)
+                    if limit:
+                        ax.axhline(limit, color='blue', linestyle='--', label='Spec Limit')
+            except:
+                pass
+
+            ax.set_title(f"{pname} - {condition}")
+            ax.set_ylabel("Value")
+            ax.set_xlabel("Time Point")
+            ax.set_xticks(range(len(selected_timepoints)))
+            ax.set_xticklabels(selected_timepoints, rotation=45, ha='right')
+            ax.grid(True)
+            ax.legend()
+            plt.tight_layout()
+            st.pyplot(fig)
+
+            chart_path = os.path.join(temp_dir, f"{condition}_{pname}.png")
+            fig.savefig(chart_path)
+            chart_paths.append((condition, pname, chart_path))
+
+if st.button("📥 Download Full Excel Report"):
+    excel_output = io.BytesIO()
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    for condition, df in all_data.items():
+        ws = wb.create_sheet(title=condition)
+
+        # Header info
+        ws.append(["Product Name:", product_name])
+        ws.append(["Batch Number:", batch_number])
+        ws.append(["Batch Size:", batch_size])
+        ws.append(["Packaging Mode:", packaging_mode])
+        for i in range(1, 5):
+            ws[f"A{i}"].font = bold_font
+            ws[f"B{i}"].font = bold_font
+        ws.append([])
+
+        # Column headers
+        ws.append(list(df.columns))
+        for cell in ws[ws.max_row]:
+            cell.font = bold_font
+
+        for i, row in df.iterrows():
+            values = list(row)
+            ws.append(values)
+            row_num = ws.max_row
+            try:
+                spec_text = row['Specification']
+                pname = row['Parameter'].lower()
+                if pname == 'assay':
+                    limits = [float(s) for s in spec_text.replace('%','').split('-')]
+                    for j, tp in enumerate(selected_timepoints):
+                        val = row[tp]
+                        if not np.isnan(val) and (val < limits[0] or val > limits[1]):
+                            ws.cell(row=row_num, column=3+j).fill = red_fill
+                elif pname == 'dissolution':
+                    limit = get_numeric(spec_text)
+                    for j, tp in enumerate(selected_timepoints):
+                        val = row[tp]
+                        if not np.isnan(val) and val < limit:
+                            ws.cell(row=row_num, column=3+j).fill = red_fill
+                elif 'impurity' in pname:
+                    limit = get_numeric(spec_text)
+                    for j, tp in enumerate(selected_timepoints):
+                        val = row[tp]
+                        if not np.isnan(val) and val > limit:
+                            ws.cell(row=row_num, column=3+j).fill = red_fill
+            except:
+                continue
+
+        for row in ws.iter_rows():
+            for cell in row:
+                cell.border = thin_border
+                cell.alignment = Alignment(wrap_text=True, vertical='center')
+
+        chart_row_start = ws.max_row + 2
+        for cond, pname, img_path in chart_paths:
+            if cond == condition:
+                ws.append([])
+                ws.append([f"Chart for {pname}"])
+                chart_row_start = ws.max_row + 1
+                img = XLImage(img_path)
+                img.width = 600
+                img.height = 300
+                ws.add_image(img, f"B{chart_row_start}")
+                chart_row_start += 18
+
+    wb.save(excel_output)
+    st.download_button(
+        label="📥 Download Excel with Data and Charts",
+        data=excel_output.getvalue(),
+        file_name=f"Stability_Study_Report_{batch_number}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+st.markdown("---")
+st.markdown("Built for Stability Analysis | Pharma Quality Tools")
 
 
 
