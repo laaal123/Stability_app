@@ -20,14 +20,7 @@ import io
 import re
 
 # PDF generation
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    Table,
-    TableStyle,
-    Image as PDFImage
-)
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as PDFImage
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
@@ -103,6 +96,5 @@ st.download_button(
 
 # The rest of the code remains unchanged...
 # (All previous logic related to form inputs, plots, Excel and PDF generation)
-
 
 
