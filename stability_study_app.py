@@ -15,7 +15,7 @@ from sklearn.linear_model import LinearRegression
 import io
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image as XLImage
-from openpyxl.styles import PatternFill, Border, Side, Alignment
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 import tempfile
 import os
 
@@ -58,6 +58,7 @@ thin_border = Border(
     top=Side(style='thin'),
     bottom=Side(style='thin')
 )
+bold_font = Font(bold=True)
 
 # --- Temporary directory for chart images ---
 temp_dir = tempfile.mkdtemp()
@@ -138,9 +139,21 @@ if st.button("📥 Download Full Excel Report"):
 
     for condition, df in all_data.items():
         ws = wb.create_sheet(title=condition)
-        ws.append([f"Batch Number: {batch_number}", f"Packaging Mode: {packaging_mode}"])
+
+        # Header info
+        ws.append(["Product Name:", product_name])
+        ws.append(["Batch Number:", batch_number])
+        ws.append(["Batch Size:", batch_size])
+        ws.append(["Packaging Mode:", packaging_mode])
+        for i in range(1, 5):
+            ws[f"A{i}"].font = bold_font
+            ws[f"B{i}"].font = bold_font
         ws.append([])
+
+        # Column headers
         ws.append(list(df.columns))
+        for cell in ws[ws.max_row]:
+            cell.font = bold_font
 
         for i, row in df.iterrows():
             values = list(row)
@@ -194,4 +207,5 @@ if st.button("📥 Download Full Excel Report"):
 
 st.markdown("---")
 st.markdown("Built for Stability Analysis | Pharma Quality Tools")
+
 
