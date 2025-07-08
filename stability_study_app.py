@@ -15,6 +15,7 @@ from sklearn.linear_model import LinearRegression
 import io
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image as XLImage
+from openpyxl.styles import PatternFill, Border, Side, Alignment
 import tempfile
 import os
 
@@ -22,8 +23,10 @@ st.set_page_config(layout="wide")
 st.title("🧪 Stability Study Report Generator")
 
 # --- HEADER INPUTS ---
+product_name = st.text_input("Product Name")
 batch_number = st.text_input("Batch Number")
 packaging_mode = st.text_input("Packaging Mode")
+batch_size = st.text_input("Batch Size")
 
 st.markdown("### ➕ Add Stability Condition Data")
 
@@ -41,25 +44,39 @@ selected_timepoints = st.multiselect("Select Timepoints to Include:", available_
 all_data = {}
 chart_paths = []
 
-# Utility function to extract numbers
 def get_numeric(value):
     try:
         return float(''.join([s for s in value if s.isdigit() or s == '.']))
     except:
         return None
 
-# Temporary directory for chart images
+# Excel style elements
+red_fill = PatternFill(start_color="FF9999", end_color="FF9999", fill_type="solid")
+thin_border = Border(
+    left=Side(style='thin'),
+    right=Side(style='thin'),
+    top=Side(style='thin'),
+    bottom=Side(style='thin')
+)
+
+# --- Temporary directory for chart images ---
 temp_dir = tempfile.mkdtemp()
 
 for condition in conditions:
     st.markdown(f"### 📋 Data for {condition}")
-    param_names = ["Assay", "Dissolution", "Unknown Impurity", "Total Impurity"]
-    n_params = st.number_input(f"Number of Parameters for {condition}", min_value=1, max_value=20, value=len(param_names), key=f"np_{condition}")
+    default_params = ["Assay", "Dissolution", "Unknown Impurity", "Total Impurity"]
+    param_input = st.text_area(
+        f"Enter Parameters for {condition} (one per line)",
+        value='\n'.join(default_params),
+        key=f"param_input_{condition}"
+    )
+    param_names = [line.strip() for line in param_input.splitlines() if line.strip()]
+    n_params = len(param_names)
 
     data = []
     for i in range(n_params):
         cols = st.columns(len(selected_timepoints) + 2)
-        pname = cols[0].text_input("Parameter", value=param_names[i] if i < len(param_names) else f"Param {i+1}", key=f"p_{condition}_{i}")
+        pname = cols[0].text_input("Parameter", value=param_names[i], key=f"p_{condition}_{i}")
         spec = cols[1].text_input("Specification", value="", key=f"s_{condition}_{i}")
         row = [pname, spec]
         for j, tp in enumerate(selected_timepoints):
@@ -72,7 +89,6 @@ for condition in conditions:
     all_data[condition] = df
     st.dataframe(df)
 
-    # --- Generate and Save Charts ---
     for _, row in df.iterrows():
         pname = row["Parameter"]
         values = row[selected_timepoints].astype(float)
@@ -111,12 +127,10 @@ for condition in conditions:
             ax.legend()
             st.pyplot(fig)
 
-            # Save chart to PNG
             chart_path = os.path.join(temp_dir, f"{condition}_{pname}.png")
             fig.savefig(chart_path)
             chart_paths.append((condition, pname, chart_path))
 
-# === Create Excel with Tables and Charts ===
 if st.button("📥 Download Full Excel Report"):
     excel_output = io.BytesIO()
     wb = Workbook()
@@ -127,10 +141,40 @@ if st.button("📥 Download Full Excel Report"):
         ws.append([f"Batch Number: {batch_number}", f"Packaging Mode: {packaging_mode}"])
         ws.append([])
         ws.append(list(df.columns))
-        for row in df.itertuples(index=False):
-            ws.append(list(row))
 
-        # Insert charts
+        for i, row in df.iterrows():
+            values = list(row)
+            ws.append(values)
+            row_num = ws.max_row
+            try:
+                spec_text = row['Specification']
+                pname = row['Parameter'].lower()
+                if pname == 'assay':
+                    limits = [float(s) for s in spec_text.replace('%','').split('-')]
+                    for j, tp in enumerate(selected_timepoints):
+                        val = row[tp]
+                        if not np.isnan(val) and (val < limits[0] or val > limits[1]):
+                            ws.cell(row=row_num, column=3+j).fill = red_fill
+                elif pname == 'dissolution':
+                    limit = get_numeric(spec_text)
+                    for j, tp in enumerate(selected_timepoints):
+                        val = row[tp]
+                        if not np.isnan(val) and val < limit:
+                            ws.cell(row=row_num, column=3+j).fill = red_fill
+                elif 'impurity' in pname:
+                    limit = get_numeric(spec_text)
+                    for j, tp in enumerate(selected_timepoints):
+                        val = row[tp]
+                        if not np.isnan(val) and val > limit:
+                            ws.cell(row=row_num, column=3+j).fill = red_fill
+            except:
+                continue
+
+        for row in ws.iter_rows():
+            for cell in row:
+                cell.border = thin_border
+                cell.alignment = Alignment(wrap_text=True, vertical='center')
+
         for cond, pname, img_path in chart_paths:
             if cond == condition:
                 ws.append([])
@@ -148,6 +192,6 @@ if st.button("📥 Download Full Excel Report"):
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-# Footer
 st.markdown("---")
 st.markdown("Built for Stability Analysis | Pharma Quality Tools")
+
