@@ -9,8 +9,6 @@ Original file is located at
 
 # stability_study_app.py
 
-# stability_study_app.py
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -38,13 +36,12 @@ from PyPDF2 import PdfReader
 import docx
 
 st.set_page_config(layout="wide")
-st.title("🧪 Stability Study Report Generator (Excel + PDF Support)")
-
-# Always show file uploader
-st.markdown("### 📂 Upload Existing File (optional)")
+st.markdown("## 📂 Upload File")
 uploaded_file = st.file_uploader("Upload Excel, Word or PDF", type=["xlsx", "docx", "pdf"])
 preloaded_data = {}
 text_data = ""
+
+st.title("🧪 Stability Study Report Generator (Excel + PDF Support)")
 
 # Parse uploaded file
 if uploaded_file is not None:
@@ -82,9 +79,22 @@ elif preloaded_data:
 else:
     st.warning("No data to preview. Please upload a supported file.")
 
-st.button("📄 Download PDF Report")
-st.button("📊 Download Excel Report")
+st.download_button(
+    label="📄 Download PDF Report",
+    data=b"",
+    file_name="stability_report.pdf",
+    mime="application/pdf",
+    disabled=True
+)
+st.download_button(
+    label="📊 Download Excel Report",
+    data=b"",
+    file_name="stability_report.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    disabled=True
+)
 
 # The rest of the code remains unchanged...
 # (All previous logic related to form inputs, plots, Excel and PDF generation)
+
 
