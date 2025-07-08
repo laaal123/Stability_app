@@ -28,6 +28,9 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
 from reportlab.lib import colors
+from pdf2image import convert_from_bytes
+import pytesseract
+
 
 # --- Setup ---
 st.set_page_config(layout="wide")
@@ -57,12 +60,15 @@ if uploaded_file is not None:
             text_table_df = pd.DataFrame([[p] for p in paragraphs], columns=["Extracted Text"])
             st.success("Word file parsed and table created")
         elif file_ext == 'pdf':
-            pdf = PdfReader(uploaded_file)
-            pages = [page.extract_text() or "" for page in pdf.pages]
-            lines = [line.strip() for page in pages for line in page.split('\n') if line.strip() != ""]
-            text_data = "\n".join(lines)
-            text_table_df = pd.DataFrame([[line] for line in lines], columns=["Extracted Text"])
-            st.success("PDF file parsed and table created")
+            images = convert_from_bytes(uploaded_file.read())
+            ocr_lines = []
+            for image in images:
+                text = pytesseract.image_to_string(image)
+                lines = [line.strip() for line in text.split("\n") if line.strip() != ""]
+                ocr_lines.extend(lines)
+            text_data = "\n".join(ocr_lines)
+            text_table_df = pd.DataFrame([[line] for line in ocr_lines], columns=["Extracted Text"])
+            st.success("PDF file parsed with OCR and table created")
     except Exception as e:
         st.error(f"Failed to parse file: {e}")
 
