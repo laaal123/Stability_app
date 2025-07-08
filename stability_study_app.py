@@ -217,4 +217,62 @@ if st.button("📥 Download Full Excel Report"):
 st.markdown("---")
 st.markdown("Built for Stability Analysis | Pharma Quality Tools")
 
+  plt.tight_layout()
+            st.pyplot(fig)
 
+# === Create PDF Report ===
+from fpdf import FPDF
+from PIL import Image
+
+if st.button("📄 Download PDF Report"):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    for condition, df in all_data.items():
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(200, 10, f"Stability Report - {condition}", ln=True, align='C')
+
+        pdf.set_font("Arial", '', 11)
+        pdf.cell(200, 10, f"Product Name: {product_name}", ln=True)
+        pdf.cell(200, 10, f"Batch Number: {batch_number}", ln=True)
+        pdf.cell(200, 10, f"Batch Size: {batch_size}", ln=True)
+        pdf.cell(200, 10, f"Packaging Mode: {packaging_mode}", ln=True)
+
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 10)
+        col_names = df.columns.tolist()
+        col_width = pdf.w / (len(col_names) + 1)
+
+        for col in col_names:
+            pdf.cell(col_width, 8, str(col), border=1)
+        pdf.ln()
+
+        pdf.set_font("Arial", '', 9)
+        for _, row in df.iterrows():
+            for val in row:
+                pdf.cell(col_width, 8, str(val), border=1)
+            pdf.ln()
+
+        # Add charts
+        for cond, pname, chart_path in chart_paths:
+            if cond == condition:
+                pdf.add_page()
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(200, 10, f"Chart for {pname} - {condition}", ln=True)
+                try:
+                    img = Image.open(chart_path)
+                    img = img.convert('RGB')
+                    img.save(chart_path)
+                    pdf.image(chart_path, x=10, w=pdf.w - 20)
+                except:
+                    pass
+
+    pdf_output = io.BytesIO()
+    pdf.output(pdf_output)
+    st.download_button(
+        label="📄 Download PDF Report",
+        data=pdf_output.getvalue(),
+        file_name=f"Stability_Report_{batch_number}.pdf",
+        mime="application/pdf"
+    )
