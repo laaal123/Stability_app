@@ -103,23 +103,26 @@ for condition in conditions:
             ax.plot(selected_timepoints, row[selected_timepoints], marker='o', label='Observed')
             ax.plot(np.array(selected_timepoints)[~np.isnan(values)], pred, '--', label='Trendline', color='gray')
 
-            spec_text = row['Specification']
-            if pname.lower() == 'assay':
-                try:
-                    limits = [float(s) for s in spec_text.replace('%','').split('-')]
-                    ax.axhline(limits[0], color='red', linestyle='--', label='Lower Spec')
-                    ax.axhline(limits[1], color='red', linestyle='--', label='Upper Spec')
-                except: pass
-            elif pname.lower() == 'dissolution':
-                try:
+            spec_text = str(row['Specification']).strip()
+            try:
+                if pname.lower() == 'assay' or 'assay' in pname.lower():
+                    limits = [float(s) for s in spec_text.replace('%','').split('-') if s.strip()]
+                    if len(limits) == 2:
+                        ax.axhline(limits[0], color='red', linestyle='--', label='Lower Spec')
+                        ax.axhline(limits[1], color='red', linestyle='--', label='Upper Spec')
+                elif pname.lower() == 'dissolution':
                     limit = get_numeric(spec_text)
                     if limit: ax.axhline(limit, color='orange', linestyle='--', label='NLT Spec')
-                except: pass
-            elif 'impurity' in pname.lower():
-                try:
+                elif 'impurity' in pname.lower():
                     limit = get_numeric(spec_text)
                     if limit: ax.axhline(limit, color='purple', linestyle='--', label='NMT Spec')
-                except: pass
+                else:
+                    # Try drawing a spec if a single numeric value is given (for any other parameter)
+                    limit = get_numeric(spec_text)
+                    if limit:
+                        ax.axhline(limit, color='blue', linestyle='--', label='Spec Limit')
+            except Exception as e:
+                pass
 
             ax.set_title(f"{pname} - {condition}")
             ax.set_ylabel("Value")
