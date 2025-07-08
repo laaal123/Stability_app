@@ -151,4 +151,4 @@ if st.button("📥 Download Full Excel Report"):
 
 # Footer
 st.markdown("---")
-st.markdown("Built for Stability Analysis | Pharma Quality Tools")")
+st.markdown("Built for Stability Analysis | Pharma Quality Tools")
