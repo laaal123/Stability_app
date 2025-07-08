@@ -217,7 +217,6 @@ if st.button("📥 Download Full Excel Report"):
 st.markdown("---")
 st.markdown("Built for Stability Analysis | Pharma Quality Tools")
 
-# === Create PDF Report ===
 from fpdf import FPDF
 from PIL import Image
 
