@@ -20,9 +20,52 @@ from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 import tempfile
 import os
+import docx
+from PyPDF2 import PdfReader
 
+# --- Setup ---
 st.set_page_config(layout="wide")
-st.title("Stability Study Report Generator")
+st.title("🧪 Stability Study Report Generator")
+
+# --- Always visible file uploader ---
+st.markdown("## 📂 Upload File (Excel, Word, PDF)")
+uploaded_file = st.file_uploader("Choose an Excel (.xlsx), Word (.docx), or PDF (.pdf) file", type=["xlsx", "docx", "pdf"])
+
+# --- Initialize ---
+preloaded_data = {}
+text_data = ""
+
+# --- Parse uploaded file ---
+if uploaded_file is not None:
+    file_ext = uploaded_file.name.split('.')[-1].lower()
+    try:
+        if file_ext == 'xlsx':
+            xls = pd.ExcelFile(uploaded_file)
+            preloaded_data = {sheet: xls.parse(sheet) for sheet in xls.sheet_names}
+            st.success(f"Excel file loaded with sheets: {', '.join(preloaded_data.keys())}")
+        elif file_ext == 'docx':
+            doc = docx.Document(uploaded_file)
+            text_data = "\n".join([para.text for para in doc.paragraphs])
+            st.info("Word file parsed (text preview below):")
+            st.text_area("Extracted Text", text_data, height=150)
+        elif file_ext == 'pdf':
+            pdf = PdfReader(uploaded_file)
+            text_data = "\n".join([page.extract_text() or "" for page in pdf.pages])
+            st.info("PDF parsed (text preview below):")
+            st.text_area("Extracted Text", text_data, height=150)
+    except Exception as e:
+        st.error(f"Failed to parse file: {e}")
+
+# --- Show preview for uploaded data ---
+st.markdown("#### 👁️ Preview Uploaded Data")
+if preloaded_data:
+    for sheet, df in preloaded_data.items():
+        st.markdown(f"**Sheet: {sheet}**")
+        st.dataframe(df)
+elif text_data:
+    st.text_area("Parsed Text Preview", text_data, height=300)
+else:
+    st.info("No file uploaded or no preview available.")
 
 # --- HEADER INPUTS ---
 product_name = st.text_input("Product Name")
@@ -30,7 +73,7 @@ batch_number = st.text_input("Batch Number")
 packaging_mode = st.text_input("Packaging Mode")
 batch_size = st.text_input("Batch Size")
 
-st.markdown("Add Stability Condition Data")
+st.markdown("### ➕ Add Stability Condition Data")
 
 conditions = st.multiselect(
     "Select Stability Conditions:",
@@ -52,7 +95,7 @@ def get_numeric(value):
     except:
         return None
 
-# Excel style elements
+# Excel styling elements
 red_fill = PatternFill(start_color="FF9999", end_color="FF9999", fill_type="solid")
 thin_border = Border(
     left=Side(style='thin'),
@@ -62,11 +105,11 @@ thin_border = Border(
 )
 bold_font = Font(bold=True)
 
-# --- Temporary directory for chart images ---
+# Temporary dir for chart images
 temp_dir = tempfile.mkdtemp()
 
 for condition in conditions:
-    st.markdown("‹ Data for {condition}")
+    st.markdown(f"### 📋 Data for {condition}")
     default_params = ["Assay", "Dissolution", "Unknown Impurity", "Total Impurity"]
     param_input = st.text_area(
         f"Enter Parameters for {condition} (one per line)",
@@ -92,6 +135,7 @@ for condition in conditions:
     all_data[condition] = df
     st.dataframe(df)
 
+    # Plotting with trendlines and specs
     for _, row in df.iterrows():
         pname = row["Parameter"]
         values = row[selected_timepoints].astype(float)
@@ -119,11 +163,10 @@ for condition in conditions:
                     limit = get_numeric(spec_text)
                     if limit: ax.axhline(limit, color='purple', linestyle='--', label='NMT Spec')
                 else:
-                    # Try drawing a spec if a single numeric value is given (for any other parameter)
                     limit = get_numeric(spec_text)
                     if limit:
                         ax.axhline(limit, color='blue', linestyle='--', label='Spec Limit')
-            except Exception as e:
+            except:
                 pass
 
             ax.set_title(f"{pname} - {condition}")
@@ -140,7 +183,14 @@ for condition in conditions:
             fig.savefig(chart_path)
             chart_paths.append((condition, pname, chart_path))
 
-if st.button("Download Full Excel Report"):
+# --- Export buttons always visible ---
+st.markdown("---")
+st.markdown("### 📄 Export Options")
+
+excel_btn = st.button("📥 Download Excel Report with Data and Charts")
+pdf_btn = st.button("📥 Download PDF Report (Coming Soon)")
+
+if excel_btn:
     excel_output = io.BytesIO()
     wb = Workbook()
     wb.remove(wb.active)
@@ -163,6 +213,7 @@ if st.button("Download Full Excel Report"):
         for cell in ws[ws.max_row]:
             cell.font = bold_font
 
+        # Data rows with spec-based coloring
         for i, row in df.iterrows():
             values = list(row)
             ws.append(values)
@@ -189,13 +240,14 @@ if st.button("Download Full Excel Report"):
                         if not np.isnan(val) and val > limit:
                             ws.cell(row=row_num, column=3+j).fill = red_fill
             except:
-                continue
+                pass
 
-        for row in ws.iter_rows():
-            for cell in row:
+        for row_cells in ws.iter_rows():
+            for cell in row_cells:
                 cell.border = thin_border
                 cell.alignment = Alignment(wrap_text=True, vertical='center')
 
+        # Add charts
         chart_row_start = ws.max_row + 2
         for cond, pname, img_path in chart_paths:
             if cond == condition:
@@ -207,18 +259,19 @@ if st.button("Download Full Excel Report"):
                 img.height = 300
                 ws.add_image(img, f"B{chart_row_start}")
                 chart_row_start += 18
-                
+
     wb.save(excel_output)
     st.download_button(
-        label="Download Excel with Data and Charts",
+        label="📥 Download Excel with Data and Charts",
         data=excel_output.getvalue(),
         file_name=f"Stability_Study_Report_{batch_number}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+if pdf_btn:
+    st.info("PDF generation coming soon!")
+
 st.markdown("---")
 st.markdown("Built for Stability Analysis | Pharma Quality Tools")
-
-
 
 
