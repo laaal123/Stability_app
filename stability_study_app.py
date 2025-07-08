@@ -189,7 +189,7 @@ st.markdown("---")
 st.markdown("### 📄 Export Options")
 
 excel_btn = st.button("📥 Download Excel Report with Data and Charts")
-pdf_btn = st.button("📥 Download PDF Report (Coming Soon)")
+pdf_btn = st.button("📥 Download PDF Report with Data and Charts")
 
 if excel_btn:
     excel_output = io.BytesIO()
