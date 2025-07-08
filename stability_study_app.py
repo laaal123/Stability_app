@@ -14,68 +14,15 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
-import tempfile
-import os
 import io
-import re
-
-# PDF generation imports
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as PDFImage
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-
-# Excel output imports
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
-
-# File parsing
-from PyPDF2 import PdfReader
-import docx
+import tempfile
+import os
 
 st.set_page_config(layout="wide")
-
-# Always visible file upload section
-st.markdown("## 📂 Upload File")
-uploaded_file = st.file_uploader("Upload Excel, Word or PDF", type=["xlsx", "docx", "pdf"])
-preloaded_data = {}
-text_data = ""
-
-st.title("🧪 Stability Study Report Generator (Excel + PDF Support)")
-
-# Parse uploaded file if provided
-if uploaded_file is not None:
-    file_ext = uploaded_file.name.split('.')[-1].lower()
-    try:
-        if file_ext == 'xlsx':
-            xls = pd.ExcelFile(uploaded_file)
-            preloaded_data = {sheet: xls.parse(sheet) for sheet in xls.sheet_names}
-            st.success(f"Excel file loaded with sheets: {', '.join(preloaded_data.keys())}")
-        elif file_ext == 'docx':
-            doc = docx.Document(uploaded_file)
-            text_data = "\n".join([para.text for para in doc.paragraphs])
-            st.info("Word file parsed (text preview below):")
-            st.text_area("Extracted Text", text_data, height=150)
-        elif file_ext == 'pdf':
-            pdf = PdfReader(uploaded_file)
-            text_data = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
-            st.info("PDF parsed (text preview below):")
-            st.text_area("Extracted Text", text_data, height=150)
-    except Exception as e:
-        st.error(f"Failed to parse file: {e}")
-
-# Preview uploaded data
-st.markdown("#### 👁️ Preview Report Content")
-if text_data:
-    st.text_area("📄 Parsed Content Preview", text_data, height=300)
-elif preloaded_data:
-    for sheet, df in preloaded_data.items():
-        st.markdown(f"**Sheet: {sheet}**")
-        st.dataframe(df)
-else:
-    st.warning("No data to preview. Please upload a supported file or fill the form below.")
+st.title("ðŸ§ª Stability Study Report Generator")
 
 # --- HEADER INPUTS ---
 product_name = st.text_input("Product Name")
@@ -83,7 +30,7 @@ batch_number = st.text_input("Batch Number")
 packaging_mode = st.text_input("Packaging Mode")
 batch_size = st.text_input("Batch Size")
 
-st.markdown("### ➕ Add Stability Condition Data")
+st.markdown("### âž• Add Stability Condition Data")
 
 conditions = st.multiselect(
     "Select Stability Conditions:",
@@ -115,11 +62,11 @@ thin_border = Border(
 )
 bold_font = Font(bold=True)
 
-# Temporary directory for chart images
+# --- Temporary directory for chart images ---
 temp_dir = tempfile.mkdtemp()
 
 for condition in conditions:
-    st.markdown(f"### 📋 Data for {condition}")
+    st.markdown(f"### ðŸ“‹ Data for {condition}")
     default_params = ["Assay", "Dissolution", "Unknown Impurity", "Total Impurity"]
     param_input = st.text_area(
         f"Enter Parameters for {condition} (one per line)",
@@ -145,7 +92,6 @@ for condition in conditions:
     all_data[condition] = df
     st.dataframe(df)
 
-    # Plot data and save charts
     for _, row in df.iterrows():
         pname = row["Parameter"]
         values = row[selected_timepoints].astype(float)
@@ -173,10 +119,11 @@ for condition in conditions:
                     limit = get_numeric(spec_text)
                     if limit: ax.axhline(limit, color='purple', linestyle='--', label='NMT Spec')
                 else:
+                    # Try drawing a spec if a single numeric value is given (for any other parameter)
                     limit = get_numeric(spec_text)
                     if limit:
                         ax.axhline(limit, color='blue', linestyle='--', label='Spec Limit')
-            except:
+            except Exception as e:
                 pass
 
             ax.set_title(f"{pname} - {condition}")
@@ -193,7 +140,7 @@ for condition in conditions:
             fig.savefig(chart_path)
             chart_paths.append((condition, pname, chart_path))
 
-if st.button("📥 Download Full Excel Report"):
+if st.button("ðŸ“¥ Download Full Excel Report"):
     excel_output = io.BytesIO()
     wb = Workbook()
     wb.remove(wb.active)
@@ -260,10 +207,10 @@ if st.button("📥 Download Full Excel Report"):
                 img.height = 300
                 ws.add_image(img, f"B{chart_row_start}")
                 chart_row_start += 18
-
+                
     wb.save(excel_output)
     st.download_button(
-        label="📥 Download Excel with Data and Charts",
+        label="ðŸ“¥ Download Excel with Data and Charts",
         data=excel_output.getvalue(),
         file_name=f"Stability_Study_Report_{batch_number}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -271,6 +218,7 @@ if st.button("📥 Download Full Excel Report"):
 
 st.markdown("---")
 st.markdown("Built for Stability Analysis | Pharma Quality Tools")
+
 
 
 
