@@ -217,9 +217,6 @@ if st.button("📥 Download Full Excel Report"):
 st.markdown("---")
 st.markdown("Built for Stability Analysis | Pharma Quality Tools")
 
-  plt.tight_layout()
-            st.pyplot(fig)
-
 # === Create PDF Report ===
 from fpdf import FPDF
 from PIL import Image
