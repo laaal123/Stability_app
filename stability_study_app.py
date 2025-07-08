@@ -313,6 +313,9 @@ if text_data:
 story.append(Spacer(1, 12))
 doc.build(story)
 
+if not isinstance(pdf_output, io.BytesIO):
+    st.error("pdf_output is not a BytesIO object!")
+
 st.download_button(
     label="📄 Download PDF Report",
     data=pdf_output.getvalue(),
