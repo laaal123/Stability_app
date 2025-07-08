@@ -1,5 +1,9 @@
 streamlit
 pandas
+numpy
 matplotlib
 scikit-learn
 openpyxl
+reportlab
+PyPDF2
+python-docx
