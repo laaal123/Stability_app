@@ -188,15 +188,18 @@ if st.button("📥 Download Full Excel Report"):
                 cell.border = thin_border
                 cell.alignment = Alignment(wrap_text=True, vertical='center')
 
+        chart_row_start = ws.max_row + 2
         for cond, pname, img_path in chart_paths:
             if cond == condition:
                 ws.append([])
                 ws.append([f"Chart for {pname}"])
+                chart_row_start = ws.max_row + 1
                 img = XLImage(img_path)
-                img.width = 500
+                img.width = 600
                 img.height = 300
-                ws.add_image(img, f"A{ws.max_row + 1}")
-
+                ws.add_image(img, f"B{chart_row_start}")
+                chart_row_start += 18
+                
     wb.save(excel_output)
     st.download_button(
         label="📥 Download Excel with Data and Charts",
