@@ -22,7 +22,7 @@ import tempfile
 import os
 
 st.set_page_config(layout="wide")
-st.title("ðŸ§ª Stability Study Report Generator")
+st.title("Stability Study Report Generator")
 
 # --- HEADER INPUTS ---
 product_name = st.text_input("Product Name")
@@ -30,7 +30,7 @@ batch_number = st.text_input("Batch Number")
 packaging_mode = st.text_input("Packaging Mode")
 batch_size = st.text_input("Batch Size")
 
-st.markdown("### âž• Add Stability Condition Data")
+st.markdown("Add Stability Condition Data")
 
 conditions = st.multiselect(
     "Select Stability Conditions:",
@@ -66,7 +66,7 @@ bold_font = Font(bold=True)
 temp_dir = tempfile.mkdtemp()
 
 for condition in conditions:
-    st.markdown(f"### ðŸ“‹ Data for {condition}")
+    st.markdown("‹ Data for {condition}")
     default_params = ["Assay", "Dissolution", "Unknown Impurity", "Total Impurity"]
     param_input = st.text_area(
         f"Enter Parameters for {condition} (one per line)",
@@ -140,7 +140,7 @@ for condition in conditions:
             fig.savefig(chart_path)
             chart_paths.append((condition, pname, chart_path))
 
-if st.button("ðŸ“¥ Download Full Excel Report"):
+if st.button("Download Full Excel Report"):
     excel_output = io.BytesIO()
     wb = Workbook()
     wb.remove(wb.active)
@@ -210,7 +210,7 @@ if st.button("ðŸ“¥ Download Full Excel Report"):
                 
     wb.save(excel_output)
     st.download_button(
-        label="ðŸ“¥ Download Excel with Data and Charts",
+        label="Download Excel with Data and Charts",
         data=excel_output.getvalue(),
         file_name=f"Stability_Study_Report_{batch_number}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
